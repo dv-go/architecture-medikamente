@@ -1,0 +1,45 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+Person(patient, "Пациент", "Пользуется порталом для записи на приём и просмотра своих данных")
+Person(receptionist, "Сотрудник ресепшена", "Оформляет записи и работает с клиентами")
+Person(doctor, "Врач", "Ведёт приёмы, оформляет медкарты")
+Person(accountant, "Бухгалтер", "Ведёт финансовый учёт")
+Person(lab, "Лаборатория", "Передаёт результаты анализов через API")
+
+System_Boundary(s1, "Информационная система 'Медикаменте'") {
+
+  Container(webPortal, "Портал для пациентов", "React / Angular", "Пациент сам записывается на приём, просматривает свою историю")
+  Container(staffPortal, "Внутренний портал", "React + RBAC", "Интерфейс для сотрудников: врач, ресепшн, бухгалтер")
+  Container(authService, "Сервис авторизации", "Keycloak", "Аутентификация и авторизация с RBAC/ABAC")
+  Container(apiGateway, "Backend API", "Spring Boot / FastAPI", "Бизнес-логика системы: запись, маршрутизация, валидация")
+  Container(db, "PostgreSQL", "Реляционная БД", "Хранение данных пациентов, записей, логов")
+  Container(fileStorage, "Хранилище файлов", "S3 / MinIO", "Анализы и медкарты в зашифрованных файлах")
+  Container(logs, "Система логирования", "Victoria Metrics / ELK", "Аудит доступа и логирование действий")
+  Container(scheduler, "Планировщик задач", "cron / очереди", "Удаление устаревших данных, отправка напоминаний")
+}
+
+Rel(patient, webPortal, "Использует", "HTTPS + JWT")
+Rel(receptionist, staffPortal, "Работает с", "HTTPS + RBAC")
+Rel(doctor, staffPortal, "Работает с", "HTTPS + RBAC")
+Rel(accountant, staffPortal, "Работает с", "HTTPS + RBAC")
+Rel(lab, apiGateway, "Передаёт анализы через", "API (TLS)")
+
+Rel(webPortal, authService, "OAuth 2.0")
+Rel(staffPortal, authService, "OAuth 2.0")
+Rel(apiGateway, authService, "Проверка токена, получение ролей", "JWT / OIDC")
+
+Rel(webPortal, apiGateway, "REST API (запись, история)", "HTTPS + JWT")
+Rel(staffPortal, apiGateway, "REST API (запросы от врача, ресепшн, бухгалтера)", "HTTPS + RBAC")
+
+Rel(apiGateway, db, "Чтение и запись", "JDBC / TLS")
+Rel(apiGateway, fileStorage, "Чтение и загрузка", "HTTPS + объектное шифрование")
+Rel(apiGateway, logs, "Записывает действия", "Audit API")
+Rel(apiGateway, scheduler, "Создание фоновых задач")
+
+Rel(scheduler, db, "Удаляет устаревшие записи")
+
+SHOW_LEGEND()
+@enduml
